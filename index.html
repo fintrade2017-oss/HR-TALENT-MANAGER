@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Talent Manager Pro | Base de Datos Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #0a66c2;
+            --secondary: #f3f2ef;
+            --dark: #333;
+            --light: #fff;
+            --border: #ccc;
+        }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: var(--secondary); 
+            margin: 0; 
+            padding: 0; 
+            color: var(--dark); 
+            font-size: 14px; 
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        header { background-color: var(--primary); color: var(--light); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        header h1 { margin: 0; font-size: 1.4rem; }
+        .lang-selector { cursor: pointer; background: white; color: var(--primary); border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; }
+        .container { display: flex; padding: 20px; gap: 20px; flex: 1; box-sizing: border-box; }
+        .card { background: var(--light); padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex: 1; overflow-y: auto; max-height: calc(100vh - 160px); }
+        h2 { border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-top: 0; }
+        h3 { background: var(--secondary); padding: 8px; border-left: 4px solid var(--primary); margin-top: 25px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; }
+        input[type="text"], input[type="email"], input[type="date"], input[type="number"], textarea, select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        .form-row { display: flex; gap: 15px; }
+        .form-row .form-group { flex: 1; }
+        button { background-color: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin-top: 10px; }
+        button:hover { background-color: #004182; }
+        button.secondary { background-color: #666; }
+        .expediente-item { border: 1px solid #eee; padding: 15px; margin-bottom: 10px; border-radius: 6px; background: #f9f9f9; }
+        .protocolo { font-weight: bold; color: var(--primary); font-size: 1.1rem; }
+        .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 900px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+        .candidate-box { background: white; border: 1px solid #ddd; padding: 15px; margin-top: 10px; border-radius: 6px; }
+        .rgpd-text { font-size: 11px; color: #666; background: #f3f2ef; padding: 10px; border-radius: 4px; margin-top: 10px; }
+        .loading { text-align: center; padding: 20px; color: #666; }
+        .error-box { background: #ffebee; color: #c62828; padding: 15px; border-radius: 6px; border: 1px solid #ef9a9a; margin-top: 10px; font-family: monospace; }
+
+        /* Estilos del Footer */
+        footer {
+            background-color: #1e293b;
+            color: #ffffff;
+            text-align: center;
+            padding: 15px;
+            font-size: 13px;
+            margin-top: auto;
+        }
+
+        /* Estilos para el Widget / Ventana Flotante del Logo */
+        .floating-logo-container {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 999;
+        }
+        .floating-logo-btn {
+            background: #ffffff;
+            border: 2px solid var(--primary);
+            border-radius: 50px;
+            padding: 6px 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .floating-logo-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+        }
+        .floating-logo-btn img {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+        }
+        .floating-logo-card {
+            display: none;
+            position: absolute;
+            bottom: 55px;
+            left: 0;
+            width: 250px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            padding: 15px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .floating-logo-card.active {
+            display: block;
+        }
+        .floating-logo-card img {
+            max-width: 100%;
+            height: auto;
+            max-height: 80px;
+            margin-bottom: 10px;
+        }
+        .floating-logo-card h4 {
+            margin: 5px 0;
+            color: var(--primary);
+            font-size: 14px;
+        }
+        .floating-logo-card p {
+            margin: 0;
+            font-size: 11px;
+            color: #666;
+        }
+        .floating-logo-close {
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            background: transparent;
+            border: none;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            font-size: 14px;
+        }
+        .floating-logo-close:hover {
+            color: #333;
+            background: transparent;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>HR Talent Manager Pro</h1>
+        <button class="lang-selector" onclick="toggleLanguage()">ES / EN</button>
+    </header>
+    <div class="container">
+        <div class="card">
+            <h2 id="formTitle">1. Crear Nuevo Expediente</h2>
+            <div class="form-group"><label for="jobTitle">Denominación del puesto</label><input type="text" id="jobTitle" placeholder="Ej: Analista de Datos Senior"></div>
+            <div class="form-group"><label for="dept">Departamento / Área</label><input type="text" id="dept" placeholder="Ej: Tecnología / BI"></div>
+            <div class="form-group"><label for="mission">Misión principal</label><textarea id="mission" rows="2" placeholder="Objetivo central del puesto..."></textarea></div>
+            <h3>Funciones Clave</h3>
+            <div class="form-group"><input type="text" id="func1" placeholder="1. Función principal..."></div>
+            <div class="form-group"><input type="text" id="func2" placeholder="2. Función principal..."></div>
+            <div class="form-group"><input type="text" id="func3" placeholder="3. Función principal..."></div>
+            <h3>Requisitos Mínimos</h3>
+            <div class="form-row">
+                <div class="form-group"><label for="reqEdu">Titulación</label><input type="text" id="reqEdu" placeholder="Ej: Grado en Estadística"></div>
+                <div class="form-group"><label for="reqExp">Experiencia (años)</label><input type="number" id="reqExp" placeholder="Ej: 3"></div>
+            </div>
+            <div class="form-group"><label for="reqTech">Conocimientos técnicos</label><input type="text" id="reqTech" placeholder="Ej: Python, SQL, PowerBI"></div>
+            <h3>Condiciones Laborales</h3>
+            <div class="form-row">
+                <div class="form-group"><label for="condContract">Contrato</label><input type="text" id="condContract" placeholder="Ej: Indefinido"></div>
+                <div class="form-group"><label for="condShift">Jornada</label><input type="text" id="condShift" placeholder="Ej: Completa"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label for="condLocation">Centro trabajo</label><input type="text" id="condLocation" placeholder="Ej: Madrid"></div>
+                <div class="form-group"><label for="condSalary">Banda salarial</label><input type="text" id="condSalary" placeholder="Ej: 30k-35k"></div>
+            </div>
+            <button onclick="createExpediente()" id="btnCreate">Crear Expediente</button>
+        </div>
+        <div class="card">
+            <h2 id="listTitle">2. Expedientes Activos</h2>
+            <div id="expedientesList"><p class="loading">Cargando base de datos...</p></div>
+        </div>
+    </div>
+
+    <!-- Ventana Modal de Detalles -->
+    <div id="detailModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header"><h2 id="modalTitle">Gestión de Expediente</h2><button class="secondary" onclick="closeModal()">X</button></div>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <!-- Ventana Flotante del Logo -->
+    <div class="floating-logo-container">
+        <div id="floatingLogoCard" class="floating-logo-card">
+            <button class="floating-logo-close" onclick="toggleLogoCard(event)">✕</button>
+            <img src="images/logo.png" alt="Propfastinvest Group Ltd" onerror="this.onerror=null; this.src='https://via.placeholder.com/150x50?text=Logo';">
+            <h4>Propfastinvest Group Ltd</h4>
+            <p>Plataforma HR Talent Manager Pro</p>
+        </div>
+        <div class="floating-logo-btn" onclick="toggleLogoCard(event)">
+            <img src="images/logo.png" alt="Logo" onerror="this.onerror=null; this.src='https://via.placeholder.com/32?text=P';">
+            <span style="font-weight: bold; color: var(--dark); font-size: 12px;">Propfastinvest</span>
+        </div>
+    </div>
+
+    <!-- Pie de página (Copyright) -->
+    <footer>
+        &copy; 2026 Propfastinvest Group Ltd. Todos los derechos reservados.
+    </footer>
+
+    <script>
+        // ==========================================
+        // CONFIGURACIÓN DE SUPABASE
+        // ==========================================
+        const SUPABASE_URL = 'https://sslegjqjieugchvznpdl.supabase.co'; 
+        const SUPABASE_KEY = 'sb_publishable_pO-p9e4lBer0Dj3FJdZgHA_gzFIuDRQ'; 
+        
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let currentLang = 'es';
+        let currentExpedienteId = null;
+
+        const translations = {
+            es: { formTitle: "1. Crear Nuevo Expediente", listTitle: "2. Expedientes Activos", btnCreate: "Crear Expediente", publishLinkedIn: "Publicar en LinkedIn", addCandidate: "Archivar Candidato en BD", noExpedientes: "No hay expedientes creados.", candidatesTitle: "Candidatos en este Expediente", emptyCandidates: "Aún no hay candidatos.", loading: "Cargando base de datos..." },
+            en: { formTitle: "1. Create New File", listTitle: "2. Active Files", btnCreate: "Create File", publishLinkedIn: "Publish on LinkedIn", addCandidate: "Archive Candidate to DB", noExpedientes: "No files created.", candidatesTitle: "Candidates in this File", emptyCandidates: "No candidates yet.", loading: "Loading database..." }
+        };
+
+        function toggleLogoCard(event) {
+            event.stopPropagation();
+            const card = document.getElementById('floatingLogoCard');
+            card.classList.toggle('active');
+        }
+
+        function applyTranslations() {
+            const t = translations[currentLang];
+            document.getElementById('formTitle').innerText = t.formTitle;
+            document.getElementById('listTitle').innerText = t.listTitle;
+            document.getElementById('btnCreate').innerText = t.btnCreate;
+            document.getElementById('modalTitle').innerText = t.modalTitle || "File Management";
+            renderExpedientes();
+        }
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'es' ? 'en' : 'es';
+            applyTranslations();
+            if (document.getElementById('detailModal').classList.contains('active') && currentExpedienteId) openExpediente(currentExpedienteId);
+        }
+
+        async function createExpediente() {
+            const jobTitle = document.getElementById('jobTitle').value;
+            if(!jobTitle) { alert('El puesto es obligatorio'); return; }
+
+            const protocolo = 'EXP-' + Date.now().toString().slice(-6);
+
+            try {
+                const { data, error } = await supabaseClient.from('expedientes').insert([{
+                    protocolo: protocolo,
+                    job_title: jobTitle,
+                    dept: document.getElementById('dept').value,
+                    mission: document.getElementById('mission').value,
+                    func1: document.getElementById('func1').value,
+                    func2: document.getElementById('func2').value,
+                    func3: document.getElementById('func3').value,
+                    req_edu: document.getElementById('reqEdu').value,
+                    req_exp: document.getElementById('reqExp').value,
+                    req_tech: document.getElementById('reqTech').value,
+                    cond_contract: document.getElementById('condContract').value,
+                    cond_shift: document.getElementById('condShift').value,
+                    cond_location: document.getElementById('condLocation').value,
+                    cond_salary: document.getElementById('condSalary').value
+                }]).select();
+
+                if (error) { 
+                    console.error('Error:', error); 
+                    alert('ERROR AL GUARDAR:\n' + error.message); 
+                    return; 
+                }
+                
+                document.querySelectorAll('.card input, .card textarea').forEach(el => el.value = '');
+                renderExpedientes();
+            } catch (e) {
+                alert('Error crítico: ' + e.message);
+            }
+        }
+
+        async function renderExpedientes() {
+            const list = document.getElementById('expedientesList');
+            const t = translations[currentLang];
+            list.innerHTML = `<p class="loading">${t.loading}</p>`;
+
+            try {
+                const { data: expedientes, error } = await supabaseClient.from('expedientes').select('*').order('created_at', { ascending: false });
+                
+                if (error) { 
+                    list.innerHTML = `<div class="error-box"><strong>Error de Base de Datos:</strong><br>${error.message}</div>`; 
+                    return; 
+                }
+                if (!expedientes || expedientes.length === 0) { 
+                    list.innerHTML = `<p>${t.noExpedientes}</p>`; 
+                    return; 
+                }
+
+                list.innerHTML = expedientes.map(exp => `
+                    <div class="expediente-item">
+                        <span class="protocolo">${exp.protocolo}</span><br>
+                        <strong>${exp.job_title}</strong> <br>
+                        <small>Departamento: ${exp.dept || 'N/A'}</small> <br><br>
+                        <button onclick="openExpediente('${exp.id}')">Gestionar</button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                list.innerHTML = `<div class="error-box">Error de conexión: ${e.message}</div>`;
+            }
+        }
+
+        async function openExpediente(id) {
+            currentExpedienteId = id;
+            const { data: exp } = await supabaseClient.from('expedientes').select('*').eq('id', id).single();
+            const { data: candidates } = await supabaseClient.from('candidatos').select('*').eq('expediente_id', id).order('created_at', { ascending: false });
+
+            const t = translations[currentLang];
+
+            let candidatesHTML = (candidates && candidates.length > 0) ? candidates.map(c => `
+                <div class="candidate-box">
+                    <h4>${c.name}</h4>
+                    <p><strong>DNI:</strong> ${c.dni} | <strong>Tel:</strong> ${c.phone} | <strong>Email:</strong> ${c.email}</p>
+                    <p><strong>Titulación:</strong> ${c.edu}</p>
+                    <p><strong>Exp:</strong> ${c.exp1_role} en ${c.exp1_company} (${c.exp1_period})</p>
+                </div>
+            `).join('') : `<p><em>${t.emptyCandidates}</em></p>`;
+
+            const linkedInText = `ESTAMOS BUSCANDO: ${exp.job_title}\nMisión: ${exp.mission}\nRequisitos: ${exp.req_edu}, ${exp.req_exp} años exp.`;
+            const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=https://example.com&summary=${encodeURIComponent(linkedInText)}`;
+
+            document.getElementById('modalContent').innerHTML = `
+                <div style="background:#f3f2ef; padding:15px; border-radius:6px; margin-bottom:20px;">
+                    <h3>${exp.protocolo} - ${exp.job_title}</h3>
+                    <p><strong>Misión:</strong> ${exp.mission}</p>
+                    <p><strong>Requisitos:</strong> ${exp.req_edu}, ${exp.req_exp} años. Tech: ${exp.req_tech}</p>
+                    <p><strong>Condiciones:</strong> ${exp.cond_contract} | ${exp.cond_location} | ${exp.cond_salary}</p>
+                    <button onclick="window.open('${linkedInUrl}', '_blank')">${t.publishLinkedIn}</button>
+                </div>
+                <h3>${t.candidatesTitle}</h3>
+                ${candidatesHTML}
+                <hr style="margin: 20px 0;">
+                <h3>SECCIÓN 1: Añadir Nuevo Candidato</h3>
+                <div class="form-row">
+                    <div class="form-group" style="flex:2"><label>Nombre y Apellidos</label><input type="text" id="cand_name"></div>
+                    <div class="form-group" style="flex:1"><label>DNI / NIE</label><input type="text" id="cand_dni"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Fecha nacimiento</label><input type="date" id="cand_birth"></div>
+                    <div class="form-group"><label>Nacionalidad</label><input type="text" id="cand_nat"></div>
+                    <div class="form-group"><label>Teléfono</label><input type="text" id="cand_phone"></div>
+                </div>
+                <div class="form-group"><label>Correo electrónico</label><input type="email" id="cand_email"></div>
+                <div class="form-group"><label>Titulación de mayor nivel</label><input type="text" id="cand_edu"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Exp 1: Empresa</label><input type="text" id="cand_exp1_comp"></div>
+                    <div class="form-group"><label>Puesto</label><input type="text" id="cand_exp1_role"></div>
+                    <div class="form-group"><label>Periodo</label><input type="text" id="cand_exp1_period"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Disponibilidad</label><input type="text" id="cand_avail"></div>
+                    <div class="form-group"><label>Jornada preferida</label><input type="text" id="cand_shift"></div>
+                </div>
+                <div class="rgpd-text"><strong>Protección de Datos (RGPD):</strong> El responsable del tratamiento es Propfastinvest Group Ltd. La finalidad es la gestión del proceso de selección de personal. Sus datos no serán cedidos a terceros salvo obligación legal. Puedes ejercer sus derechos dirigiendo un escrito al contacto de la entidad.</div>
+                <br>
+                <button onclick="addCandidate()">${t.addCandidate}</button>
+            `;
+            document.getElementById('detailModal').classList.add('active');
+        }
+
+        function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
+
+        async function addCandidate() {
+            if(!currentExpedienteId) return alert("Error: No hay expediente seleccionado");
+            
+            const { data, error } = await supabaseClient.from('candidatos').insert([{
+                expediente_id: currentExpedienteId,
+                name: document.getElementById('cand_name').value,
+                dni: document.getElementById('cand_dni').value,
+                birth: document.getElementById('cand_birth').value,
+                nat: document.getElementById('cand_nat').value,
+                phone: document.getElementById('cand_phone').value,
+                email: document.getElementById('cand_email').value,
+                edu: document.getElementById('cand_edu').value,
+                exp1_company: document.getElementById('cand_exp1_comp').value,
+                exp1_role: document.getElementById('cand_exp1_role').value,
+                exp1_period: document.getElementById('cand_exp1_period').value,
+                avail: document.getElementById('cand_avail').value,
+                shift: document.getElementById('cand_shift').value
+            }]);
+
+            if (error) { alert("Error al guardar candidato: " + error.message); return; }
+            
+            document.querySelectorAll('#modalContent input, #modalContent textarea').forEach(el => el.value = '');
+            openExpediente(currentExpedienteId);
+        }
+
+        applyTranslations();
+    </script>
+</body>
+</html>
